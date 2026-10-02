@@ -82,6 +82,7 @@
         <option value="0.7">0.7x (Rất chậm, dễ nghe)</option>
         <option value="0.85" selected>0.85x (Chuẩn học tập, rõ từng từ)</option>
         <option value="1.0">1.0x (Bình thường)</option>
+        <option value="1.2">1.2x (Nhanh)</option>
     </select>
 
     <label for="loopCount">Số lần lặp lại:</label>
@@ -106,17 +107,16 @@
         let isRunning = false;
         let utterance = null;
 
-        // Tự động nạp danh sách giọng đọc có sẵn trên thiết bị (ưu tiên giọng Anh-Mỹ, Anh-Anh chất lượng cao)
+        // Tự động nạp danh sách giọng đọc có sẵn trên thiết bị
         function loadVoices() {
             const voices = window.speechSynthesis.getVoices();
             const voiceSelect = document.getElementById("voiceSelect");
             voiceSelect.innerHTML = "";
 
-            // Lọc và sắp xếp các giọng tiếng Anh và tiếng Việt
             let filteredVoices = voices.filter(v => v.lang.includes('en') || v.lang.includes('vi'));
             
             if (filteredVoices.length === 0) {
-                filteredVoices = voices; // Nếu không tìm thấy thì lấy tất cả
+                filteredVoices = voices;
             }
 
             filteredVoices.forEach((voice, index) => {
@@ -124,15 +124,13 @@
                 option.value = voice.name;
                 option.textContent = `${voice.name} (${voice.lang})`;
                 
-                // Ưu tiên chọn sẵn giọng Google US English hoặc Natural nếu có
-                if (voice.name.includes('Google US English') || voice.name.includes('Aria') || voice.lang === 'en-US' && index === 0) {
+                if (voice.name.includes('Google US English') || voice.name.includes('Aria') || (voice.lang === 'en-US' && index === 0)) {
                     option.selected = true;
                 }
                 voiceSelect.appendChild(option);
             });
         }
 
-        // Trình duyệt cần thời gian để load danh sách voice
         window.speechSynthesis.onvoiceschanged = loadVoices;
         loadVoices();
 
@@ -167,7 +165,6 @@
 
             utterance = new SpeechSynthesisUtterance(text);
             
-            // Lấy giọng đọc người dùng đã chọn từ ô select
             const selectedVoiceName = document.getElementById("voiceSelect").value;
             const voices = window.speechSynthesis.getVoices();
             const chosenVoice = voices.find(v => v.name === selectedVoiceName);
@@ -175,10 +172,9 @@
                 utterance.voice = chosenVoice;
             }
 
-            // Thiết lập tốc độ đọc
+            // Lấy tốc độ từ ô chọn tốc độ đọc
             utterance.rate = parseFloat(document.getElementById("speedSelect").value);
 
-            // Khi đọc xong 1 lượt, tự động nghỉ 1.2 giây rồi lặp lại vòng tiếp theo mượt mà như YouTube
             utterance.onend = function() {
                 if (isRunning) {
                     setTimeout(() => {
