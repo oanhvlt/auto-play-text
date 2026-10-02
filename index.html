@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phần Mềm Đọc Văn Bản Tự Động Lặp Lại</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        h2 { text-align: center; color: #007bff; }
+        label { font-weight: bold; display: block; margin-top: 15px; }
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            resize: vertical;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            flex: 1;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        #btnStart { background-color: #28a745; }
+        #btnStart:hover { background-color: #218838; }
+        #btnStop { background-color: #dc3545; }
+        #btnStop:hover { background-color: #c82333; }
+        #status {
+            margin-top: 20px;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+            background-color: #e9ecef;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Phần Mềm Đọc Văn Bản Lặp Lại</h2>
+
+    <label for="textInput">Dán đoạn văn của bạn vào đây:</label>
+    <textarea id="textInput" placeholder="Nhập hoặc dán văn bản cần đọc..."></textarea>
+
+    <label for="loopCount">Số lần lặp lại:</label>
+    <select id="loopCount">
+        <option value="1">1 lần</option>
+        <option value="3">3 lần</option>
+        <option value="5">5 lần</option>
+        <option value="10">10 lần</option>
+        <option value="infinite" selected>Lặp vô hạn (như YouTube)</option>
+    </select>
+
+    <div class="btn-group">
+        <button id="btnStart" onclick="startReading()">Bắt đầu phát</button>
+        <button id="btnStop" onclick="stopReading()">Dừng lại</button>
+    </div>
+
+    <div id="status">Trạng thái: Đang chờ...</div>
+
+    <script>
+        let currentLoop = 0;
+        let maxLoops = 'infinite';
+        let isRunning = false;
+        let utterance = null;
+
+        function startReading() {
+            const text = document.getElementById("textInput").value.trim();
+            if (!text) {
+                alert("Vui lòng nhập đoạn văn bản trước khi bấm bắt đầu!");
+                return;
+            }
+
+            // Dừng nếu đang đọc dở
+            window.speechSynthesis.cancel();
+
+            maxLoops = document.getElementById("loopCount").value;
+            currentLoop = 0;
+            isRunning = true;
+
+            playNext(text);
+        }
+
+        function playNext(text) {
+            if (!isRunning) return;
+
+            // Kiểm tra điều kiện dừng nếu chọn số lần cố định
+            if (maxLoops !== 'infinite' && currentLoop >= parseInt(maxLoops)) {
+                document.getElementById("status").innerText = "Trạng thái: Đã hoàn thành " + maxLoops + " lần phát!";
+                isRunning = false;
+                return;
+            }
+
+            currentLoop++;
+            let loopTextDisplay = maxLoops === 'infinite' ? "Vô hạn" : "/" + maxLoops;
+            document.getElementById("status").innerText = "Đang phát lần thứ: " + currentLoop + loopTextDisplay;
+
+            utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'vi-VN'; // Đọc bằng tiếng Việt
+
+            utterance.onend = function() {
+                if (isRunning) {
+                    // Nghỉ 0.5 giây giữa các lần lặp cho mượt
+                    setTimeout(() => {
+                        playNext(text);
+                    }, 500);
+                }
+            };
+
+            utterance.onerror = function() {
+                if (isRunning) {
+                    document.getElementById("status").innerText = "Trạng thái: Có lỗi xảy ra khi đọc.";
+                    isRunning = false;
+                }
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function stopReading() {
+            isRunning = false;
+            window.speechSynthesis.cancel();
+            document.getElementById("status").innerText = "Trạng thái: Đã dừng.";
+        }
+    </script>
+
+</body>
+</html>
