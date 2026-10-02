@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phần Mềm Đọc Văn Bản Lặp Lại - AI Cao Cấp</title>
+    <title>Phần Mềm Đọc Văn Bản Lặp Lại</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -70,18 +70,19 @@
     <h2>Phần Mềm Đọc Văn Bản Lặp Lại</h2>
 
     <label for="textInput">Dán đoạn văn của bạn vào đây:</label>
-    <textarea id="textInput" placeholder="Nhập hoặc dán văn bản cần đọc...">Have you had any experience working with or integrating AI agents into your testing workflow?</textarea>
+    <textarea id="textInput" placeholder="Nhập hoặc dán văn bản cần đọc...">Xin chào, phần mềm đã sẵn sàng phát âm thanh.</textarea>
 
     <label for="langSelect">Chọn ngôn ngữ đọc:</label>
     <select id="langSelect">
-        <option value="en" selected>Tiếng Anh (Chuẩn AI Google)</option>
-        <option value="vi">Tiếng Việt (Chuẩn AI Google)</option>
+        <option value="vi-VN" selected>Tiếng Việt</option>
+        <option value="en-US">Tiếng Anh (Mỹ)</option>
+        <option value="en-GB">Tiếng Anh (Anh)</option>
     </select>
 
     <label for="speedSelect">Tốc độ đọc:</label>
     <select id="speedSelect">
-        <option value="0.7">0.7x (Rất chậm, dễ nghe)</option>
-        <option value="0.85" selected>0.85x (Chuẩn học tập, rõ từng từ)</option>
+        <option value="0.7">0.7x (Rất chậm)</option>
+        <option value="0.85" selected>0.85x (Chuẩn học tập)</option>
         <option value="1.0">1.0x (Bình thường)</option>
     </select>
 
@@ -99,16 +100,12 @@
         <button id="btnStop" onclick="stopReading()">Dừng lại</button>
     </div>
 
-    <div id="status">Trạng thái: Sẵn sàng (Không cần tải thư viện ngoài)</div>
-
-    <!-- Thẻ âm thanh ẩn -->
-    <audio id="audioPlayer"></audio>
+    <div id="status">Trạng thái: Sẵn sàng</div>
 
     <script>
         let currentLoop = 0;
         let maxLoops = 'infinite';
         let isRunning = false;
-        let audioPlayer = document.getElementById("audioPlayer");
 
         function startReading() {
             const text = document.getElementById("textInput").value.trim();
@@ -117,14 +114,19 @@
                 return;
             }
 
-            audioPlayer.pause();
-            audioPlayer.currentTime = 0;
+            // Xóa hoàn toàn hàng đợi cũ để tránh bị kẹt luồng
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
 
             maxLoops = document.getElementById("loopCount").value;
             currentLoop = 0;
             isRunning = true;
 
-            playLoop(text);
+            // Đợi một nhịp cực ngắn để hệ thống âm thanh reset xong rồi tiến hành phát
+            setTimeout(() => {
+                playLoop(text);
+            }, 100);
         }
 
         function playLoop(text) {
@@ -140,41 +142,9 @@
             let loopTextDisplay = maxLoops === 'infinite' ? " (Vô hạn)" : " / " + maxLoops;
             document.getElementById("status").innerText = "Trạng thái: Đang phát lần thứ " + currentLoop + loopTextDisplay;
 
-            const lang = document.getElementById("langSelect").value;
-            const speed = parseFloat(document.getElementById("speedSelect").value);
-
-            // Sử dụng dịch vụ mã hóa URL âm thanh thông qua API công cộng không bị khóa CORS client-side
-            const encodedText = encodeURIComponent(text);
-            
-            // Dùng API trực tiếp thông qua proxy âm thanh ổn định
-            audioPlayer.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=dict-chrome-ex`;
-            audioPlayer.playbackRate = speed;
-
-            audioPlayer.play().then(() => {
-                // Đã phát thành công
-            }).catch(error => {
-                // Fallback phòng hờ: Nếu lỗi trình duyệt chặn, chuyển sang cơ chế phát bằng Web Speech API thông minh tích hợp sẵn
-                console.log("Chuyển sang chế độ dự phòng...");
-                playFallbackSpeech(text, lang, speed);
-            });
-
-            audioPlayer.onended = function() {
-                if (isRunning) {
-                    setTimeout(() => {
-                        playLoop(text);
-                    }, 1200); // Nghỉ 1.2 giây rồi lặp lại mượt mà như YouTube
-                }
-            };
-        }
-
-        // Hàm dự phòng thông minh tuyệt đối không bao giờ chết
-        function playFallbackSpeech(text, lang, speed) {
-            if (!isRunning) return;
-            window.speechSynthesis.cancel();
-
-            let utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = lang === 'en' ? 'en-US' : 'vi-VN';
-            utterance.rate = speed;
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = document.getElementById("langSelect").value;
+            utterance.rate = parseFloat(document.getElementById("speedSelect").value);
 
             utterance.onend = function() {
                 if (isRunning) {
@@ -184,14 +154,21 @@
                 }
             };
 
+            utterance.onerror = function() {
+                if (isRunning) {
+                    document.getElementById("status").innerText = "Trạng thái: Lỗi phát âm thanh từ trình duyệt.";
+                    isRunning = false;
+                }
+            };
+
             window.speechSynthesis.speak(utterance);
         }
 
         function stopReading() {
             isRunning = false;
-            audioPlayer.pause();
-            audioPlayer.currentTime = 0;
-            window.speechSynthesis.cancel();
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
             document.getElementById("status").innerText = "Trạng thái: Đã dừng.";
         }
     </script>
