@@ -118,7 +118,6 @@
                 return;
             }
 
-            // Hủy mọi âm thanh đang chạy trước đó
             if (typeof responsiveVoice !== "undefined") {
                 responsiveVoice.cancel();
             }
@@ -152,12 +151,10 @@
                 return;
             }
 
-            // Tiến hành đọc bằng giọng chuẩn bản xứ
             responsiveVoice.speak(text, selectedVoice, {
                 rate: selectedSpeed,
                 onend: function() {
                     if (isRunning) {
-                        // Tự động nghỉ 1.2 giây rồi lặp lại vòng tiếp theo mượt mà như YouTube
                         setTimeout(() => {
                             playLoop(text);
                         }, 1200);
