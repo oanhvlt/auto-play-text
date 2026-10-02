@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phần Mềm Đọc Văn Bản Lặp Lại - Chuẩn Google AI</title>
+    <title>Phần Mềm Đọc Văn Bản Lặp Lại - Chuẩn AI</title>
+    <!-- Nhúng thư viện ResponsiveVoice chính thức để phát giọng chuẩn bản xứ không bị chặn -->
+    <script src="https://code.responsivevoice.org/responsivevoice.js?key=free"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -67,15 +69,18 @@
 </head>
 <body>
 
-    <h2>Phần Mềm Đọc Văn Bản Lặp Lại (Chuẩn Google)</h2>
+    <h2>Phần Mềm Đọc Văn Bản Lặp Lại</h2>
 
     <label for="textInput">Dán đoạn văn của bạn vào đây:</label>
     <textarea id="textInput" placeholder="Nhập hoặc dán văn bản cần đọc...">Have you had any experience working with or integrating AI agents into your testing workflow?</textarea>
 
-    <label for="langSelect">Chọn ngôn ngữ (Giọng chuẩn Google):</label>
-    <select id="langSelect">
-        <option value="en" selected>Tiếng Anh (Chuẩn giọng Google)</option>
-        <option value="vi">Tiếng Việt (Chuẩn giọng Google)</option>
+    <label for="voiceSelect">Chọn giọng đọc chuẩn:</label>
+    <select id="voiceSelect">
+        <option value="UK English Female" selected>Tiếng Anh (UK - Nữ cực chuẩn)</option>
+        <option value="US English Female">Tiếng Anh (US - Nữ chuẩn)</option>
+        <option value="UK English Male">Tiếng Anh (UK - Nam)</option>
+        <option value="US English Male">Tiếng Anh (US - Nam)</option>
+        <option value="Vietnamese Male">Tiếng Việt</option>
     </select>
 
     <label for="speedSelect">Tốc độ đọc:</label>
@@ -101,14 +106,10 @@
 
     <div id="status">Trạng thái: Sẵn sàng</div>
 
-    <!-- Thẻ âm thanh để phát stream trực tiếp từ nguồn chuẩn -->
-    <audio id="audioPlayer" style="display:none;"></audio>
-
     <script>
         let currentLoop = 0;
         let maxLoops = 'infinite';
         let isRunning = false;
-        let audioPlayer = document.getElementById("audioPlayer");
 
         function startReading() {
             const text = document.getElementById("textInput").value.trim();
@@ -117,8 +118,10 @@
                 return;
             }
 
-            audioPlayer.pause();
-            audioPlayer.currentTime = 0;
+            // Hủy mọi âm thanh đang chạy trước đó
+            if (typeof responsiveVoice !== "undefined") {
+                responsiveVoice.cancel();
+            }
 
             maxLoops = document.getElementById("loopCount").value;
             currentLoop = 0;
@@ -140,40 +143,34 @@
             let loopTextDisplay = maxLoops === 'infinite' ? " (Vô hạn)" : " / " + maxLoops;
             document.getElementById("status").innerText = "Trạng thái: Đang phát lần thứ " + currentLoop + loopTextDisplay;
 
-            const lang = document.getElementById("langSelect").value;
-            const speed = document.getElementById("speedSelect").value;
-            
-            // Sử dụng dịch vụ proxy âm thanh qua cdn trung gian công cộng để đảm bảo không bị chặn CORS và phát ra đúng giọng chuẩn Google
-            const encodedText = encodeURIComponent(text);
-            
-            // Sử dụng dịch vụ phát âm thanh trực tiếp kết hợp thông số tốc độ
-            // Dùng qua dịch vụ phát mã nguồn mở Responsive/Google Audio Proxy
-            let audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=tw-ob`;
+            const selectedVoice = document.getElementById("voiceSelect").value;
+            const selectedSpeed = parseFloat(document.getElementById("speedSelect").value);
 
-            audioPlayer.src = audioUrl;
-            
-            // Điều chỉnh tốc độ phát âm thanh dựa trên lựa chọn của người dùng
-            audioPlayer.playbackRate = parseFloat(speed);
-
-            audioPlayer.play().catch(error => {
-                document.getElementById("status").innerText = "Trạng thái: Không thể kết nối âm thanh, vui lòng thử lại.";
+            if (typeof responsiveVoice === "undefined") {
+                document.getElementById("status").innerText = "Trạng thái: Đang tải thư viện, vui lòng đợi...";
                 isRunning = false;
-            });
+                return;
+            }
 
-            audioPlayer.onended = function() {
-                if (isRunning) {
-                    // Nghỉ 1.2 giây giữa các vòng lặp giống YouTube
-                    setTimeout(() => {
-                        playLoop(text);
-                    }, 1200);
+            // Tiến hành đọc bằng giọng chuẩn bản xứ
+            responsiveVoice.speak(text, selectedVoice, {
+                rate: selectedSpeed,
+                onend: function() {
+                    if (isRunning) {
+                        // Tự động nghỉ 1.2 giây rồi lặp lại vòng tiếp theo mượt mà như YouTube
+                        setTimeout(() => {
+                            playLoop(text);
+                        }, 1200);
+                    }
                 }
-            };
+            });
         }
 
         function stopReading() {
             isRunning = false;
-            audioPlayer.pause();
-            audioPlayer.currentTime = 0;
+            if (typeof responsiveVoice !== "undefined") {
+                responsiveVoice.cancel();
+            }
             document.getElementById("status").innerText = "Trạng thái: Đã dừng.";
         }
     </script>
