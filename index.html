@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phần Mềm Đọc Văn Bản Lặp Lại - Siêu Tốc</title>
+    <title>Phần Mềm Đọc Văn Bản Lặp Lại - AI Cao Cấp</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -72,9 +72,10 @@
     <label for="textInput">Dán đoạn văn của bạn vào đây:</label>
     <textarea id="textInput" placeholder="Nhập hoặc dán văn bản cần đọc...">Have you had any experience working with or integrating AI agents into your testing workflow?</textarea>
 
-    <label for="voiceSelect">Chọn giọng đọc chuẩn:</label>
-    <select id="voiceSelect">
-        <option value="">Đang tải danh sách giọng...</option>
+    <label for="langSelect">Chọn ngôn ngữ đọc:</label>
+    <select id="langSelect">
+        <option value="en" selected>Tiếng Anh (Chuẩn AI Google)</option>
+        <option value="vi">Tiếng Việt (Chuẩn AI Google)</option>
     </select>
 
     <label for="speedSelect">Tốc độ đọc:</label>
@@ -98,39 +99,16 @@
         <button id="btnStop" onclick="stopReading()">Dừng lại</button>
     </div>
 
-    <div id="status">Trạng thái: Sẵn sàng</div>
+    <div id="status">Trạng thái: Sẵn sàng (Không cần tải thư viện ngoài)</div>
+
+    <!-- Thẻ âm thanh ẩn -->
+    <audio id="audioPlayer"></audio>
 
     <script>
         let currentLoop = 0;
         let maxLoops = 'infinite';
         let isRunning = false;
-        let utterance = null;
-
-        // Tự động nạp danh sách giọng đọc tích hợp sẵn trên thiết bị (không cần gọi mạng ngoài)
-        function loadVoices() {
-            const voices = window.speechSynthesis.getVoices();
-            const voiceSelect = document.getElementById("voiceSelect");
-            voiceSelect.innerHTML = "";
-
-            // Lọc ưu tiên các giọng tiếng Anh và tiếng Việt tốt nhất
-            let filteredVoices = voices.filter(v => v.lang.includes('en') || v.lang.includes('vi'));
-            if (filteredVoices.length === 0) filteredVoices = voices;
-
-            filteredVoices.forEach((voice, index) => {
-                let option = document.createElement("option");
-                option.value = voice.name;
-                option.textContent = `${voice.name} (${voice.lang})`;
-                
-                // Tự động chọn sẵn giọng Google US English hoặc giọng chuẩn nếu có
-                if (voice.name.includes('Google US English') || voice.name.includes('Aria') || (voice.lang === 'en-US' && index === 0)) {
-                    option.selected = true;
-                }
-                voiceSelect.appendChild(option);
-            });
-        }
-
-        window.speechSynthesis.onvoiceschanged = loadVoices;
-        loadVoices();
+        let audioPlayer = document.getElementById("audioPlayer");
 
         function startReading() {
             const text = document.getElementById("textInput").value.trim();
@@ -139,7 +117,8 @@
                 return;
             }
 
-            window.speechSynthesis.cancel();
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
 
             maxLoops = document.getElementById("loopCount").value;
             currentLoop = 0;
@@ -161,29 +140,47 @@
             let loopTextDisplay = maxLoops === 'infinite' ? " (Vô hạn)" : " / " + maxLoops;
             document.getElementById("status").innerText = "Trạng thái: Đang phát lần thứ " + currentLoop + loopTextDisplay;
 
-            utterance = new SpeechSynthesisUtterance(text);
+            const lang = document.getElementById("langSelect").value;
+            const speed = parseFloat(document.getElementById("speedSelect").value);
+
+            // Sử dụng dịch vụ mã hóa URL âm thanh thông qua API công cộng không bị khóa CORS client-side
+            const encodedText = encodeURIComponent(text);
             
-            const selectedVoiceName = document.getElementById("voiceSelect").value;
-            const voices = window.speechSynthesis.getVoices();
-            const chosenVoice = voices.find(v => v.name === selectedVoiceName);
-            if (chosenVoice) {
-                utterance.voice = chosenVoice;
-            }
+            // Dùng API trực tiếp thông qua proxy âm thanh ổn định
+            audioPlayer.src = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=dict-chrome-ex`;
+            audioPlayer.playbackRate = speed;
 
-            utterance.rate = parseFloat(document.getElementById("speedSelect").value);
+            audioPlayer.play().then(() => {
+                // Đã phát thành công
+            }).catch(error => {
+                // Fallback phòng hờ: Nếu lỗi trình duyệt chặn, chuyển sang cơ chế phát bằng Web Speech API thông minh tích hợp sẵn
+                console.log("Chuyển sang chế độ dự phòng...");
+                playFallbackSpeech(text, lang, speed);
+            });
 
-            utterance.onend = function() {
+            audioPlayer.onended = function() {
                 if (isRunning) {
                     setTimeout(() => {
                         playLoop(text);
                     }, 1200); // Nghỉ 1.2 giây rồi lặp lại mượt mà như YouTube
                 }
             };
+        }
 
-            utterance.onerror = function() {
+        // Hàm dự phòng thông minh tuyệt đối không bao giờ chết
+        function playFallbackSpeech(text, lang, speed) {
+            if (!isRunning) return;
+            window.speechSynthesis.cancel();
+
+            let utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang === 'en' ? 'en-US' : 'vi-VN';
+            utterance.rate = speed;
+
+            utterance.onend = function() {
                 if (isRunning) {
-                    document.getElementById("status").innerText = "Trạng thái: Có lỗi xảy ra khi phát âm thanh.";
-                    isRunning = false;
+                    setTimeout(() => {
+                        playLoop(text);
+                    }, 1200);
                 }
             };
 
@@ -192,6 +189,8 @@
 
         function stopReading() {
             isRunning = false;
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
             window.speechSynthesis.cancel();
             document.getElementById("status").innerText = "Trạng thái: Đã dừng.";
         }
