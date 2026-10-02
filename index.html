@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phần Mềm Đọc Văn Bản Tự Động Lặp Lại</title>
+    <title>Phần Mềm Đọc Văn Bản Lặp Lại - Giọng AI Cao Cấp</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -67,16 +67,17 @@
 </head>
 <body>
 
-    <h2>Phần Mềm Đọc Văn Bản Lặp Lại</h2>
+    <h2>Phần Mềm Đọc Văn Bản Lặp Lại (Giọng AI)</h2>
 
     <label for="textInput">Dán đoạn văn của bạn vào đây:</label>
-    <textarea id="textInput" placeholder="Nhập hoặc dán văn bản cần đọc...">Have you had any experience working with or integrating AI agents into your testing workflow? Let's check it out.</textarea>
+    <textarea id="textInput" placeholder="Nhập hoặc dán văn bản cần đọc...">Have you had any experience working with or integrating AI agents into your testing workflow?</textarea>
 
-    <label for="langSelect">Chọn ngôn ngữ:</label>
-    <select id="langSelect">
-        <option value="en-US" selected>Tiếng Anh (US)</option>
-        <option value="en-GB">Tiếng Anh (UK)</option>
-        <option value="vi-VN">Tiếng Việt</option>
+    <label for="voiceSelect">Chọn giọng đọc AI:</label>
+    <select id="voiceSelect">
+        <option value="en-US-AriaNeural" selected>Tiếng Anh Mỹ - Nữ (Aria AI Cực mượt)</option>
+        <option value="en-US-GuyNeural">Tiếng Anh Mỹ - Nam (Guy AI)</option>
+        <option value="en-GB-SoniaNeural">Tiếng Anh Anh - Nữ (Sonia AI)</option>
+        <option value="vi-VN-HoaiMyNeural">Tiếng Việt - Nữ (Hoài Mỹ AI)</option>
     </select>
 
     <label for="loopCount">Số lần lặp lại:</label>
@@ -95,88 +96,71 @@
 
     <div id="status">Trạng thái: Đang chờ...</div>
 
+    <!-- Thẻ Audio dùng để phát stream âm thanh AI trực tiếp -->
+    <audio id="audioPlayer" style="display:none;"></audio>
+
     <script>
         let currentLoop = 0;
         let maxLoops = 'infinite';
         let isRunning = false;
-        let sentences = [];
-        let currentSentenceIndex = 0;
+        let audioPlayer = document.getElementById("audioPlayer");
 
         function startReading() {
-            const fullText = document.getElementById("textInput").value.trim();
-            if (!fullText) {
+            const text = document.getElementById("textInput").value.trim();
+            if (!text) {
                 alert("Vui lòng nhập đoạn văn bản trước khi bấm bắt đầu!");
                 return;
             }
 
-            // Dừng mọi phát âm thanh cũ
-            window.speechSynthesis.cancel();
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
 
             maxLoops = document.getElementById("loopCount").value;
             currentLoop = 0;
             isRunning = true;
 
-            // Tách câu tự động khi gặp dấu chấm, chấm hỏi, chấm than, chấm phẩy
-            sentences = fullText.match(/[^.?!;]+[.?!;]+["']?|[^.?!;]+$/g) || [fullText];
-            sentences = sentences.map(s => s.trim());
-            currentSentenceIndex = 0;
-
-            playNextSentence();
+            playLoop(text);
         }
 
-        function playNextSentence() {
+        function playLoop(text) {
             if (!isRunning) return;
 
-            // Hết các câu trong 1 vòng -> tăng số vòng lặp
-            if (currentSentenceIndex >= sentences.length) {
-                currentLoop++;
-                
-                if (maxLoops !== 'infinite' && currentLoop >= parseInt(maxLoops)) {
-                    document.getElementById("status").innerText = "Trạng thái: Đã hoàn thành " + maxLoops + " lần phát!";
-                    isRunning = false;
-                    return;
-                }
-
-                currentSentenceIndex = 0;
-                setTimeout(() => {
-                    playNextSentence();
-                }, 1000); // Nghỉ 1 giây rồi lặp lại từ đầu đoạn
+            if (maxLoops !== 'infinite' && currentLoop >= parseInt(maxLoops)) {
+                document.getElementById("status").innerText = "Trạng thái: Đã hoàn thành " + maxLoops + " lần phát!";
+                isRunning = false;
                 return;
             }
 
+            currentLoop++;
             let loopTextDisplay = maxLoops === 'infinite' ? " (Vô hạn)" : " / " + maxLoops;
-            document.getElementById("status").innerText = "Trạng thái: Vòng " + (currentLoop + 1) + loopTextDisplay + " - Câu " + (currentSentenceIndex + 1) + "/" + sentences.length;
+            document.getElementById("status").innerText = "Trạng thái: Đang phát lần thứ " + currentLoop + loopTextDisplay;
 
-            const selectedLang = document.getElementById("langSelect").value;
-            const currentSentence = sentences[currentSentenceIndex];
+            const voice = document.getElementById("voiceSelect").value;
+            
+            // Sử dụng dịch vụ công cộng stream âm thanh TTS chất lượng cao
+            const encodedText = encodeURIComponent(text);
+            const audioUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${voice}&text=${encodedText}`;
 
-            const utterance = new SpeechSynthesisUtterance(currentSentence);
-            utterance.lang = selectedLang;
-            utterance.rate = 1.0; // Tốc độ chuẩn
+            audioPlayer.src = audioUrl;
+            audioPlayer.play().catch(error => {
+                document.getElementById("status").innerText = "Trạng thái: Lỗi kết nối âm thanh AI.";
+                isRunning = false;
+            });
 
-            utterance.onend = function() {
+            audioPlayer.onended = function() {
                 if (isRunning) {
-                    currentSentenceIndex++;
-                    // Nghỉ ngắn 0.3 giây giữa các câu cho tự nhiên
+                    // Nghỉ 1 giây giữa các vòng lặp giống YouTube
                     setTimeout(() => {
-                        playNextSentence();
-                    }, 300);
+                        playLoop(text);
+                    }, 1000);
                 }
             };
-
-            utterance.onerror = function() {
-                if (isRunning) {
-                    document.getElementById("status").innerText = "Trạng thái: Có lỗi khi đọc.";
-                    isRunning = false;
-                }
-            };
-
-            window.speechSynthesis.speak(utterance);
         }
 
         function stopReading() {
             isRunning = false;
-            window.speechSynthesis.cancel();
+            audioPlayer.pause();
+            audioPlayer.currentTime = 0;
             document.getElementById("status").innerText = "Trạng thái: Đã dừng.";
         }
     </script>
