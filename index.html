@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phần Mềm Đọc Văn Bản Lặp Lại - Chuẩn AI</title>
-    <!-- Nhúng thư viện ResponsiveVoice chính thức để phát giọng chuẩn bản xứ không bị chặn -->
-    <script src="https://code.responsivevoice.org/responsivevoice.js?key=free"></script>
+    <title>Phần Mềm Đọc Văn Bản Lặp Lại - Siêu Tốc</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -76,11 +74,7 @@
 
     <label for="voiceSelect">Chọn giọng đọc chuẩn:</label>
     <select id="voiceSelect">
-        <option value="UK English Female" selected>Tiếng Anh (UK - Nữ cực chuẩn)</option>
-        <option value="US English Female">Tiếng Anh (US - Nữ chuẩn)</option>
-        <option value="UK English Male">Tiếng Anh (UK - Nam)</option>
-        <option value="US English Male">Tiếng Anh (US - Nam)</option>
-        <option value="Vietnamese Male">Tiếng Việt</option>
+        <option value="">Đang tải danh sách giọng...</option>
     </select>
 
     <label for="speedSelect">Tốc độ đọc:</label>
@@ -110,6 +104,33 @@
         let currentLoop = 0;
         let maxLoops = 'infinite';
         let isRunning = false;
+        let utterance = null;
+
+        // Tự động nạp danh sách giọng đọc tích hợp sẵn trên thiết bị (không cần gọi mạng ngoài)
+        function loadVoices() {
+            const voices = window.speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById("voiceSelect");
+            voiceSelect.innerHTML = "";
+
+            // Lọc ưu tiên các giọng tiếng Anh và tiếng Việt tốt nhất
+            let filteredVoices = voices.filter(v => v.lang.includes('en') || v.lang.includes('vi'));
+            if (filteredVoices.length === 0) filteredVoices = voices;
+
+            filteredVoices.forEach((voice, index) => {
+                let option = document.createElement("option");
+                option.value = voice.name;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                
+                // Tự động chọn sẵn giọng Google US English hoặc giọng chuẩn nếu có
+                if (voice.name.includes('Google US English') || voice.name.includes('Aria') || (voice.lang === 'en-US' && index === 0)) {
+                    option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
+        }
+
+        window.speechSynthesis.onvoiceschanged = loadVoices;
+        loadVoices();
 
         function startReading() {
             const text = document.getElementById("textInput").value.trim();
@@ -118,9 +139,7 @@
                 return;
             }
 
-            if (typeof responsiveVoice !== "undefined") {
-                responsiveVoice.cancel();
-            }
+            window.speechSynthesis.cancel();
 
             maxLoops = document.getElementById("loopCount").value;
             currentLoop = 0;
@@ -142,32 +161,38 @@
             let loopTextDisplay = maxLoops === 'infinite' ? " (Vô hạn)" : " / " + maxLoops;
             document.getElementById("status").innerText = "Trạng thái: Đang phát lần thứ " + currentLoop + loopTextDisplay;
 
-            const selectedVoice = document.getElementById("voiceSelect").value;
-            const selectedSpeed = parseFloat(document.getElementById("speedSelect").value);
-
-            if (typeof responsiveVoice === "undefined") {
-                document.getElementById("status").innerText = "Trạng thái: Đang tải thư viện, vui lòng đợi...";
-                isRunning = false;
-                return;
+            utterance = new SpeechSynthesisUtterance(text);
+            
+            const selectedVoiceName = document.getElementById("voiceSelect").value;
+            const voices = window.speechSynthesis.getVoices();
+            const chosenVoice = voices.find(v => v.name === selectedVoiceName);
+            if (chosenVoice) {
+                utterance.voice = chosenVoice;
             }
 
-            responsiveVoice.speak(text, selectedVoice, {
-                rate: selectedSpeed,
-                onend: function() {
-                    if (isRunning) {
-                        setTimeout(() => {
-                            playLoop(text);
-                        }, 1200);
-                    }
+            utterance.rate = parseFloat(document.getElementById("speedSelect").value);
+
+            utterance.onend = function() {
+                if (isRunning) {
+                    setTimeout(() => {
+                        playLoop(text);
+                    }, 1200); // Nghỉ 1.2 giây rồi lặp lại mượt mà như YouTube
                 }
-            });
+            };
+
+            utterance.onerror = function() {
+                if (isRunning) {
+                    document.getElementById("status").innerText = "Trạng thái: Có lỗi xảy ra khi phát âm thanh.";
+                    isRunning = false;
+                }
+            };
+
+            window.speechSynthesis.speak(utterance);
         }
 
         function stopReading() {
             isRunning = false;
-            if (typeof responsiveVoice !== "undefined") {
-                responsiveVoice.cancel();
-            }
+            window.speechSynthesis.cancel();
             document.getElementById("status").innerText = "Trạng thái: Đã dừng.";
         }
     </script>
