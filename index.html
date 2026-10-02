@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Phần Mềm Đọc Văn Bản Lặp Lại - Giọng AI Cao Cấp</title>
+    <title>Phần Mềm Đọc Văn Bản Lặp Lại - Giọng AI Chuẩn</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -67,17 +67,15 @@
 </head>
 <body>
 
-    <h2>Phần Mềm Đọc Văn Bản Lặp Lại (Giọng AI)</h2>
+    <h2>Phần Mềm Đọc Văn Bản Lặp Lại</h2>
 
     <label for="textInput">Dán đoạn văn của bạn vào đây:</label>
     <textarea id="textInput" placeholder="Nhập hoặc dán văn bản cần đọc...">Have you had any experience working with or integrating AI agents into your testing workflow?</textarea>
 
-    <label for="voiceSelect">Chọn giọng đọc AI:</label>
-    <select id="voiceSelect">
-        <option value="en-US-AriaNeural" selected>Tiếng Anh Mỹ - Nữ (Aria AI Cực mượt)</option>
-        <option value="en-US-GuyNeural">Tiếng Anh Mỹ - Nam (Guy AI)</option>
-        <option value="en-GB-SoniaNeural">Tiếng Anh Anh - Nữ (Sonia AI)</option>
-        <option value="vi-VN-HoaiMyNeural">Tiếng Việt - Nữ (Hoài Mỹ AI)</option>
+    <label for="langSelect">Chọn ngôn ngữ & Giọng đọc chuẩn:</label>
+    <select id="langSelect">
+        <option value="en" selected>Tiếng Anh (Chuẩn AI Google)</option>
+        <option value="vi">Tiếng Việt (Chuẩn AI Google)</option>
     </select>
 
     <label for="loopCount">Số lần lặp lại:</label>
@@ -96,7 +94,7 @@
 
     <div id="status">Trạng thái: Đang chờ...</div>
 
-    <!-- Thẻ Audio dùng để phát stream âm thanh AI trực tiếp -->
+    <!-- Thẻ Audio ngầm -->
     <audio id="audioPlayer" style="display:none;"></audio>
 
     <script>
@@ -135,21 +133,21 @@
             let loopTextDisplay = maxLoops === 'infinite' ? " (Vô hạn)" : " / " + maxLoops;
             document.getElementById("status").innerText = "Trạng thái: Đang phát lần thứ " + currentLoop + loopTextDisplay;
 
-            const voice = document.getElementById("voiceSelect").value;
+            const lang = document.getElementById("langSelect").value;
             
-            // Sử dụng dịch vụ công cộng stream âm thanh TTS chất lượng cao
+            // Sử dụng dịch vụ Proxy âm thanh tiêu chuẩn để tải file giọng đọc mượt mà, không bị chặn CORS
             const encodedText = encodeURIComponent(text);
-            const audioUrl = `https://api.streamelements.com/kappa/v2/speech?voice=${voice}&text=${encodedText}`;
+            const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodedText}&tl=${lang}&client=gtx`;
 
             audioPlayer.src = audioUrl;
             audioPlayer.play().catch(error => {
-                document.getElementById("status").innerText = "Trạng thái: Lỗi kết nối âm thanh AI.";
+                document.getElementById("status").innerText = "Trạng thái: Không thể phát âm thanh, hãy kiểm tra lại kết nối.";
                 isRunning = false;
             });
 
             audioPlayer.onended = function() {
                 if (isRunning) {
-                    // Nghỉ 1 giây giữa các vòng lặp giống YouTube
+                    // Nghỉ 1 giây rồi lặp lại vòng tiếp theo mượt mà như YouTube
                     setTimeout(() => {
                         playLoop(text);
                     }, 1000);
